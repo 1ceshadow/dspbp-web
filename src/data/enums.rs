@@ -471,13 +471,8 @@ pub enum BPModel {
     AssemblingMachineMkIII = 67,
     ArcSmelter = 62,
     PlaneSmelter = 194,
-    // DLC / newer buildings (model IDs from community research)
-    NegentropySmelter = 344,
-    RecomposingAssembler = 373,
-    QuantumChemicalPlant = 376,
-    ChemicalPlant = 80,
-    MatrixLab = 69,
-    SelfevolutionLab = 418,
+    // TODO Some other buildings that we can't upgrade/downgrade. We can grab them from
+    // dsp_blueprint_editor at some point.
 }
 
 impl BPModel {
@@ -492,14 +487,8 @@ impl BPModel {
             DSPItem::AssemblingMachineMkI => Self::AssemblingMachineMkI,
             DSPItem::AssemblingMachineMkII => Self::AssemblingMachineMkII,
             DSPItem::AssemblingMachineMkIII => Self::AssemblingMachineMkIII,
-            DSPItem::RecomposingAssembler => Self::RecomposingAssembler,
             DSPItem::ArcSmelter => Self::ArcSmelter,
             DSPItem::PlaneSmelter => Self::PlaneSmelter,
-            DSPItem::NegentropySmelter => Self::NegentropySmelter,
-            DSPItem::ChemicalPlant => Self::ChemicalPlant,
-            DSPItem::QuantumChemicalPlant => Self::QuantumChemicalPlant,
-            DSPItem::MatrixLab => Self::MatrixLab,
-            DSPItem::SelfevolutionLab => Self::SelfevolutionLab,
             _ => anyhow::bail!("Building {:?} has no BP model", i),
         };
         Ok(o)
@@ -512,8 +501,6 @@ pub enum BuildingClass {
     Smelter,
     Belt,
     Sorter,
-    ChemPlant,
-    Lab,
     Other,
 }
 
@@ -529,7 +516,6 @@ impl From<DSPItem> for BuildingClass {
             DSPItem::AssemblingMachineMkI => Self::Assembler,
             DSPItem::AssemblingMachineMkII => Self::Assembler,
             DSPItem::AssemblingMachineMkIII => Self::Assembler,
-            DSPItem::RecomposingAssembler => Self::Assembler,
             DSPItem::SorterMKI => Self::Sorter,
             DSPItem::SorterMKII => Self::Sorter,
             DSPItem::SorterMKIII => Self::Sorter,
@@ -538,11 +524,6 @@ impl From<DSPItem> for BuildingClass {
             DSPItem::ConveyorBeltMKIII => Self::Belt,
             DSPItem::ArcSmelter => Self::Smelter,
             DSPItem::PlaneSmelter => Self::Smelter,
-            DSPItem::NegentropySmelter => Self::Smelter,
-            DSPItem::ChemicalPlant => Self::ChemPlant,
-            DSPItem::QuantumChemicalPlant => Self::ChemPlant,
-            DSPItem::MatrixLab => Self::Lab,
-            DSPItem::SelfevolutionLab => Self::Lab,
             _ => Self::Other,
         }
     }
