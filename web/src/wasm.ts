@@ -27,6 +27,22 @@ export interface WasmModule {
   ): string
   blueprint_info(bp_string: string): string
   upgrade_groups(): string
+  /** Returns a JSON array of 5 u32 icon values for the blueprint. */
+  get_blueprint_icons(bp_string: string): string
+  /**
+   * Updates blueprint icon slots.
+   * `icons_json` is a JSON array: [{"slot": 0, "value": 1001}, ...]
+   * Items: value = item_id (1001-19999)
+   * Recipes: value = recipe_id + 20000
+   * Clear slot: value = 0
+   */
+  set_blueprint_icons(
+    bp_string: string,
+    icons_json: string,
+    compression_level: number
+  ): string
+  /** Returns JSON array [{id: number, name: string}, ...] of all items (Chinese names). */
+  item_list(): string
 }
 
 let _wasm: WasmModule | null = null
