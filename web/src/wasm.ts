@@ -30,6 +30,11 @@ export interface WasmModule {
   /** Returns a JSON array of 5 u32 icon values for the blueprint. */
   get_blueprint_icons(bp_string: string): string
   /**
+   * Returns building counts as a JSON array: [{"id": 2303, "count": 5}, ...]
+   * Item IDs are the same numeric DSP item IDs used throughout the game.
+   */
+  blueprint_building_counts(bp_string: string): string
+  /**
    * Updates blueprint icon slots.
    * `icons_json` is a JSON array: [{"slot": 0, "value": 1001}, ...]
    * Items: value = item_id (1001-19999)

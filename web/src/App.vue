@@ -4,7 +4,7 @@
       <h1>🔧 DSP 蓝图升降级工具</h1>
       <p class="subtitle">戴森球计划 · Blueprint Upgrade / Downgrade</p>
       <button class="btn theme-toggle" @click="toggleTheme" :title="isDark ? '切换到明亮模式' : '切换到暗色模式'">
-        {{ isDark ? '☀️ 明亮' : '🌙 暗色' }}
+        {{ isDark ? '️🌙' : '☀️' }}
       </button>
     </header>
 
@@ -23,24 +23,28 @@
         <h2>① 粘贴蓝图</h2>
         <textarea
           v-model="inputBp"
-          class="bp-textarea"
+          class="bp-textarea bp-textarea--input"
           placeholder="将蓝图字符串粘贴到这里…"
           spellcheck="false"
           @input="onInputChange"
         />
         <div class="row">
-          <button class="btn btn-secondary" @click="inputBp = ''; outputBp = ''; infoText = ''">清空</button>
+          <button class="btn btn-secondary" @click="pasteInput" title="从剪贴板粘贴蓝图">📋 粘贴</button>
+          <button class="btn btn-secondary" @click="inputBp = ''; outputBp = ''; infoText = ''; inputBuildingCounts = []; outputBuildingCounts = []">清空</button>
           <label class="btn btn-secondary file-upload-label" title="从 .txt 文件加载蓝图">
             📂 从文件导入
             <input type="file" accept=".txt,.blueprint" class="file-input-hidden" @change="onFileUpload" />
           </label>
-          <span v-if="infoText" class="info-text">{{ infoText }}</span>
         </div>
+        <BlueprintSummary :items="inputBuildingCounts" />
       </section>
 
       <!-- ② 升降级配置 -->
       <section class="card">
-        <h2>② 配置升降级</h2>
+        <div class="card-header-row">
+          <h2>② 配置升降级</h2>
+          <button class="btn btn-secondary btn-sm" @click="clearConfig" title="重置所有选择为（不替换）">清空配置</button>
+        </div>
 
         <div v-for="group in upgradeGroups" :key="group.id" class="group-row">
           <span class="group-label">{{ group.label }}</span>
@@ -74,7 +78,10 @@
         <div class="option-row">
           <label>压缩等级：</label>
           <input type="number" v-model.number="compressionLevel" min="1" max="9" class="compression-input" />
-          <span class="hint"><!-- -->(1–9，默认 6；设为 9 可减小约 5% 体积)</span>
+          <span class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-text">控制蓝图字符串的 zlib 压缩强度（1–9）。<br>默认 6，与游戏原版一致。<br>等级越高压缩越彻底但耗时略长。<br>设为 9 相比默认约减小 5% 体积。</span>
+          </span>
         </div>
 
         <!-- 蓝图图标编辑 -->
@@ -123,7 +130,7 @@
         <h2>③ 转换结果</h2>
         <textarea
           v-model="outputBp"
-          class="bp-textarea"
+          class="bp-textarea bp-textarea--output"
           placeholder="转换后的蓝图字符串将显示在这里…"
           readonly
           spellcheck="false"
@@ -146,6 +153,7 @@
             title="保存为 .txt 文件"
           >💾 保存为文件</button>
         </div>
+        <BlueprintSummary :items="outputBuildingCounts" />
       </section>
     </main>
 
@@ -166,6 +174,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { loadWasm, getUpgradeGroups } from './wasm'
 import type { WasmModule, UpgradeGroup } from './wasm'
+import BlueprintSummary from './BlueprintSummary.vue'
+import type { BuildingCount } from './BlueprintSummary.vue'
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 const isDark = ref(false)
@@ -210,6 +220,19 @@ const running = ref(false)
 const runError = ref('')
 const copied = ref(false)
 
+// ── Building summaries ─────────────────────────────────────────────────────
+const inputBuildingCounts = ref<BuildingCount[]>([])
+const outputBuildingCounts = ref<BuildingCount[]>([])
+
+function loadBuildingCounts(bp: string): BuildingCount[] {
+  if (!wasm || !bp.trim()) return []
+  try {
+    return JSON.parse(wasm.blueprint_building_counts(bp.trim())) as BuildingCount[]
+  } catch {
+    return []
+  }
+}
+
 // ── Icon editing ───────────────────────────────────────────────────────────
 const iconEditEnabled = ref(false)
 const iconList = ref<{ id: number; name: string }[]>([])
@@ -224,12 +247,27 @@ function iconIdFromSearch(s: string): number {
   return isNaN(n) ? 0 : n
 }
 
+async function pasteInput() {
+  try {
+    const text = await navigator.clipboard.readText()
+    if (text) {
+      inputBp.value = text.trim()
+      outputBp.value = ''
+      onInputChange()
+    }
+  } catch {
+    // Permission denied or API unavailable – silently ignore
+  }
+}
+
 function onInputChange() {
   outputBp.value = ''
+  outputBuildingCounts.value = []
   runError.value = ''
   if (!wasm || !inputBp.value.trim()) {
     infoText.value = ''
     iconSearches.value = ['', '', '', '', '']
+    inputBuildingCounts.value = []
     return
   }
   try {
@@ -237,6 +275,7 @@ function onInputChange() {
   } catch {
     infoText.value = ''
   }
+  inputBuildingCounts.value = loadBuildingCounts(inputBp.value)
   // Load current icon values
   try {
     const icons: number[] = JSON.parse(wasm.get_blueprint_icons(inputBp.value.trim()))
@@ -355,18 +394,30 @@ function applyPreset(replacements: { groupId: string; from: string; to: string }
   for (const g of upgradeGroups.value) {
     selections[g.id] = { from: '', to: '' }
   }
-  // A preset can have multiple rows for the same group.
-  // We'll just set the LAST one for the group for simplicity
-  // (each group row only shows one from→to in the UI, but we pass them all to wasm).
-  // Store them as multi-map internally.
+  // Group by groupId: if a group has multiple "from" entries, show "（全部）" in UI
+  const grouped = new Map<string, { froms: string[]; to: string }>()
   for (const r of replacements) {
-    if (selections[r.groupId]) {
-      selections[r.groupId].from = r.from
-      selections[r.groupId].to = r.to
+    if (!grouped.has(r.groupId)) {
+      grouped.set(r.groupId, { froms: [], to: r.to })
+    }
+    grouped.get(r.groupId)!.froms.push(r.from)
+  }
+  for (const [groupId, { froms, to }] of grouped.entries()) {
+    if (selections[groupId]) {
+      // Multiple froms → show "（全部）" so UI accurately reflects the replacement
+      selections[groupId].from = froms.length > 1 ? '' : froms[0]
+      selections[groupId].to = to
     }
   }
   // Store full preset for run():
   pendingPreset.value = replacements
+}
+
+function clearConfig() {
+  for (const g of upgradeGroups.value) {
+    selections[g.id] = { from: '', to: '' }
+  }
+  pendingPreset.value = null
 }
 
 const pendingPreset = ref<{ groupId: string; from: string; to: string }[] | null>(null)
@@ -441,8 +492,10 @@ function run() {
         )
       }
       outputBp.value = result
+      outputBuildingCounts.value = loadBuildingCounts(result)
     } catch (e: unknown) {
       runError.value = e instanceof Error ? e.message : String(e)
+      outputBuildingCounts.value = []
     } finally {
       running.value = false
     }
@@ -460,7 +513,9 @@ async function copyOutput() {
 function useOutputAsInput() {
   if (!outputBp.value) return
   inputBp.value = outputBp.value
+  inputBuildingCounts.value = outputBuildingCounts.value
   outputBp.value = ''
+  outputBuildingCounts.value = []
   onInputChange()
 }
 
@@ -515,6 +570,10 @@ function saveAsFile() {
   --error-border: #f85149;
   --error-color: #ffa198;
   --error-code-bg: #21262d;
+  --count-color: #22d3ee;
+  --count-shadow: 0 0 8px rgba(34,211,238,0.7);
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  --card-shadow-hover: 0 4px 20px rgba(0,0,0,0.5);
 }
 
 body.light-mode {
@@ -539,6 +598,10 @@ body.light-mode {
   --error-border: #cf222e;
   --error-color: #cf222e;
   --error-code-bg: #f0f2f5;
+  --count-color: #0550ae;
+  --count-shadow: none;
+  --card-shadow: 0 1px 6px rgba(0,0,0,0.1);
+  --card-shadow-hover: 0 3px 14px rgba(0,0,0,0.15);
 }
 
 body {
@@ -566,6 +629,8 @@ body {
   font-size: 2rem;
   font-weight: 700;
   color: var(--accent);
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 32px rgba(88,166,255,0.25);
 }
 .subtitle {
   margin: 0;
@@ -603,77 +668,127 @@ body {
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 14px;
+  padding: 22px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  transition: background 0.25s, border-color 0.25s;
+  transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+  box-shadow: var(--card-shadow);
+}
+.card:hover {
+  box-shadow: var(--card-shadow-hover);
 }
 .card h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card h2::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+  opacity: 0.7;
+  flex-shrink: 0;
 }
 
 /* Textarea */
 .bp-textarea {
+  width: 100%;
   flex: 1;
-  min-height: 200px;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 0.78rem;
-  padding: 10px;
+  padding: 10px 12px;
   resize: vertical;
   outline: none;
-  transition: border-color 0.2s, background 0.25s, color 0.25s;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.25s, color 0.25s;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.15);
 }
-.bp-textarea:focus { border-color: var(--accent); }
+.bp-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(88,166,255,0.12);
+}
+.bp-textarea--input { min-height: 110px; }
+.bp-textarea--output {
+  min-height: 72px;
+  color: var(--text-secondary);
+  font-size: 0.73rem;
+  cursor: default;
+}
+.bp-textarea--output:not(:placeholder-shown) {
+  color: var(--text-primary);
+  opacity: 0.85;
+}
 
 /* Buttons */
 .btn {
-  padding: 8px 16px;
+  padding: 7px 15px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background 0.15s, opacity 0.15s, transform 0.1s, box-shadow 0.15s;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:disabled { opacity: 0.38; cursor: not-allowed; }
+.btn:not(:disabled):active { transform: translateY(1px); }
 .btn-primary {
   background: #238636;
   color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
-.btn-primary:not(:disabled):hover { background: #2ea043; }
+.btn-primary:not(:disabled):hover {
+  background: #2ea043;
+  box-shadow: 0 2px 8px rgba(35,134,54,0.45);
+}
 .btn-secondary {
   background: var(--btn-secondary-bg);
   color: var(--text-muted);
   border: 1px solid var(--border-color);
 }
-.btn-secondary:not(:disabled):hover { background: var(--border-color); }
+.btn-secondary:not(:disabled):hover {
+  background: var(--border-color);
+  color: var(--text-primary);
+}
 .btn-preset {
   background: var(--preset-bg);
   color: var(--preset-color);
   border: 1px solid var(--preset-border);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   padding: 5px 10px;
+  border-radius: 6px;
 }
 .btn-preset:hover { background: var(--preset-hover); }
 
 .run-btn {
   width: 100%;
   justify-content: center;
-  padding: 12px;
+  padding: 13px;
   font-size: 1rem;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(35,134,54,0.3);
+}
+.run-btn:not(:disabled):hover {
+  box-shadow: 0 4px 16px rgba(35,134,54,0.45);
 }
 
 /* Group rows */
@@ -698,18 +813,80 @@ body {
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 0.85rem;
+  border-radius: 7px;
+  font-size: 0.84rem;
   outline: none;
   cursor: pointer;
-  transition: background 0.25s, color 0.25s, border-color 0.2s;
+  transition: background 0.25s, color 0.25s, border-color 0.2s, box-shadow 0.2s;
 }
-.selects select:focus { border-color: var(--accent); }
+.selects select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.12);
+}
 .arrow { color: var(--accent); font-weight: bold; }
+
+/* Card header row */
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-header-row h2 { margin: 0; }
+.btn-sm {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+}
+
+/* Tooltip icon */
+.tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  color: var(--bg-card);
+  font-size: 0.7rem;
+  font-weight: bold;
+  cursor: help;
+  flex-shrink: 0;
+  user-select: none;
+}
+.tooltip-text {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  background: #1c2128;
+  color: #e6edf3;
+  border: 1px solid #444c56;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+.tooltip-wrap:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
 
 /* Presets */
 .preset-section {
-  border-top: 1px solid #21262d;
+  border-top: 1px solid var(--border-color);
   padding-top: 12px;
 }
 .preset-title {
@@ -758,13 +935,13 @@ body {
 
 /* Banners */
 .loading-banner, .error-banner {
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 16px;
   margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 .loading-banner {
   background: var(--loading-bg);
@@ -837,8 +1014,9 @@ footer a:hover { text-decoration: underline; }
 .icon-editor {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 14px;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.1);
 }
 .icon-slots {
   display: flex;

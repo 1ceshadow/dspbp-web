@@ -142,6 +142,34 @@ pub fn blueprint_info(bp_string: &str) -> Result<String, JsValue> {
     inner().map_err(|e| JsValue::from_str(&format!("{:#}", e)))
 }
 
+/// Return building counts as a JSON array: [{"id": 2303, "count": 5}, ...]
+/// Item IDs match the DSP item numeric IDs (e.g. 2303 = AssemblingMachineMkI).
+#[wasm_bindgen]
+pub fn blueprint_building_counts(bp_string: &str) -> Result<String, JsValue> {
+    let inner = || -> anyhow::Result<String> {
+        let mut bp = Blueprint::new(bp_string)?;
+        let mut stats = GetStats::new();
+        stats.visit_blueprint(&mut bp);
+        let mut counts: Vec<(u16, usize)> = stats
+            .0
+            .buildings
+            .iter()
+            .map(|(item, count)| {
+                let id: u16 = (*item).into();
+                (id, *count)
+            })
+            .collect();
+        // Sort by item id for stable output
+        counts.sort_by_key(|(id, _)| *id);
+        let json_entries: Vec<String> = counts
+            .iter()
+            .map(|(id, count)| format!("{{\"id\":{},\"count\":{}}}", id, count))
+            .collect();
+        Ok(format!("[{}]", json_entries.join(",")))
+    };
+    inner().map_err(|e| JsValue::from_str(&format!("{:#}", e)))
+}
+
 /// Return a JSON string describing all supported upgrade groups.
 /// This is a static definition, used by the frontend to render the UI.
 #[wasm_bindgen]
