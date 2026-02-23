@@ -86,7 +86,7 @@
         </div>
         <div v-if="iconEditEnabled" class="icon-editor">
           <p class="hint" style="margin:0 0 8px;">
-            搜索物品名称或直接输入 ID；配方图标用 <code>ID + 20000</code>（如 <code>20001</code>&#xff09;；留空清除。
+            搜索物品名称或直接输入 ID；配方图标用 <code>ID + 20000</code>（如 <code>20001</code>）；留空清除。
             <a href="https://dsp-wiki.com/Items" target="_blank" rel="noopener" class="wiki-link">🔗 DSP Wiki 物品列表</a>
           </p>
           <div class="icon-slots">
@@ -193,7 +193,7 @@ onMounted(async () => {
     }
     // Load item list for icon editor
     try {
-      itemList.value = JSON.parse(wasm.item_list()) as { id: number; name: string }[]
+      iconList.value = JSON.parse(wasm.item_list()) as { id: number; name: string }[]
     } catch { /* ignore */ }
     wasmReady.value = true
   } catch (e: unknown) {
@@ -213,7 +213,6 @@ const copied = ref(false)
 // ── Icon editing ───────────────────────────────────────────────────────────
 const iconEditEnabled = ref(false)
 const iconList = ref<{ id: number; name: string }[]>([])
-const itemList = iconList   // alias used in onMounted
 // text displayed per slot: "负熵小柜 (1127)" or raw number or empty
 const iconSearches = ref<string[]>(['', '', '', '', ''])
 
@@ -244,7 +243,10 @@ function onInputChange() {
     iconSearches.value = icons.map(v => {
       if (!v) return ''
       const item = iconList.value.find(it => it.id === v)
-      return item ? `${item.name} (${item.id})` : String(v)
+      if (item) return `${item.name} (${item.id})`
+      // Icons can also be recipes (value >= 20000); show them with a clear label
+      if (v >= 20000) return `Recipe ID: ${v}`
+      return String(v)
     })
   } catch {
     iconSearches.value = ['', '', '', '', '']

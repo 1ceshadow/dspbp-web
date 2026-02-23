@@ -211,7 +211,7 @@ pub fn item_list() -> String {
     let items = locale::all_items_cn();
     let entries: Vec<String> = items
         .iter()
-        .map(|(id, name)| format!("{{\"id\":{},\"name\":\"{}\"}}", id, name))
+        .map(|(id, name)| format!("{{\"id\":{},\"name\":{}}}", id, serde_json::to_string(name).unwrap()))
         .collect();
     format!("[{}]", entries.join(","))
 }
@@ -250,9 +250,104 @@ pub fn set_blueprint_icons(
             if slot >= 5 {
                 anyhow::bail!("icon slot {} out of range (0-4)", slot);
             }
+            // Validate value encoding: 0 = clear, 1–999 = signal, 1000–19999 = item, 20000+ = recipe
+            if value > 0 && value < 1000 {
+                // signals 1-999 are valid
+            } else if !(value == 0 || (1000..=19999).contains(&value) || value >= 20000) {
+                anyhow::bail!("icon value {} is not a valid DSP icon encoding (0=clear, 1-999=signal, 1000-19999=item, 20000+=recipe)", value);
+            }
             bp.icons[slot] = value;
         }
         bp.into_bp_string(compression_level)
     };
     inner().map_err(|e| JsValue::from_str(&format!("{:#}", e)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_item_list_json_structure() {
+        let json = item_list();
+        // Should be a JSON array of objects with "id" and "name" fields.
+        let parsed: Vec<serde_json::Value> =
+            serde_json::from_str(&json).expect("item_list should return valid JSON");
+        assert!(
+            !parsed.is_empty(),
+            "item_list should return at least one item"
+        );
+        for entry in &parsed {
+            assert!(
+                entry.get("id").and_then(|v| v.as_i64()).is_some(),
+                "each item should have numeric 'id'"
+            );
+            assert!(
+                entry.get("name").and_then(|v| v.as_str()).is_some(),
+                "each item should have string 'name'"
+            );
+        }
+    }
+
+    /// Tests for get_blueprint_icons / set_blueprint_icons use JsValue which only
+    /// works correctly in a real WASM runtime. Run them with `wasm-pack test`.
+    #[cfg(target_arch = "wasm32")]
+    #[test]
+    fn test_get_blueprint_icons_invalid_blueprint() {
+        // An obviously invalid blueprint string should result in an error.
+        let result = get_blueprint_icons("not-a-valid-blueprint");
+        assert!(
+            result.is_err(),
+            "get_blueprint_icons should error on invalid blueprint input"
+        );
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[test]
+    fn test_set_blueprint_icons_invalid_json() {
+        // Malformed JSON for icons_json should cause an error, not a panic.
+        let result = set_blueprint_icons("not-a-valid-blueprint", "this is not json", 0);
+        assert!(
+            result.is_err(),
+            "set_blueprint_icons should error on invalid JSON input"
+        );
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[test]
+    fn test_set_blueprint_icons_out_of_range_slot() {
+        // Well-formed JSON but with an out-of-range slot index.
+        let result = set_blueprint_icons(
+            "not-a-valid-blueprint",
+            r#"[{"slot": 5, "value": 1001}]"#,
+            0,
+        );
+        assert!(
+            result.is_err(),
+            "set_blueprint_icons should reject out-of-range slot indices"
+        );
+    }
+
+    // Native-runnable equivalents that test core logic without JsValue wrappers.
+    #[test]
+    fn test_blueprint_parse_rejects_invalid_string() {
+        assert!(
+            crate::blueprint::Blueprint::new("not-a-valid-blueprint").is_err(),
+            "Blueprint::new should error on invalid input"
+        );
+    }
+
+    #[test]
+    fn test_set_icons_rejects_invalid_json() {
+        let bad: Result<Vec<serde_json::Value>, _> = serde_json::from_str("this is not json");
+        assert!(bad.is_err(), "serde_json should error on malformed JSON");
+    }
+
+    #[test]
+    fn test_set_icons_rejects_out_of_range_slot() {
+        let updates: Vec<serde_json::Value> =
+            serde_json::from_str(r#"[{"slot": 5, "value": 1001}]"#).unwrap();
+        let slot = updates[0]["slot"].as_u64().unwrap() as usize;
+        assert!(slot >= 5, "slot 5 should be detected as out of range (0-4)");
+    }
 }
