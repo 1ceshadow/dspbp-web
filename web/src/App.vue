@@ -124,11 +124,9 @@
       <div class="footer-links">
         <a href="https://github.com/1ceshadow/dspdp-web" target="_blank" rel="noopener">📦 本项目 GitHub</a>
         <span class="footer-sep">·</span>
-        <a href="https://github.com/beholdenkey/dspbp" target="_blank" rel="noopener">🦀 dspbp 原始 Rust 工具</a>
-        <span class="footer-sep">·</span>
         <a href="https://dsp-wiki.com" target="_blank" rel="noopener">📖 DSP Wiki</a>
         <span class="footer-sep">·</span>
-        <a href="https://huww98.github.io/dsp_blueprint_editor/" target="_blank" rel="noopener">🎨 蓝图编辑器</a>
+        <a href="https://huww98.github.io/dsp_blueprint_editor/" target="_blank" rel="noopener">🎨 蓝图预览</a>
       </div>
       <div class="footer-note">基于 Rust + WASM · 离线运行，蓝图不离开本机</div>
     </footer>
