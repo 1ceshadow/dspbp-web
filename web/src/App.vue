@@ -3,6 +3,9 @@
     <header class="app-header">
       <h1>🔧 DSP 蓝图升降级工具</h1>
       <p class="subtitle">戴森球计划 · Blueprint Upgrade / Downgrade</p>
+      <button class="btn theme-toggle" @click="toggleTheme" :title="isDark ? '切换到明亮模式' : '切换到暗色模式'">
+        {{ isDark ? '☀️ 明亮' : '🌙 暗色' }}
+      </button>
     </header>
 
     <div v-if="!wasmReady" class="loading-banner">
@@ -118,6 +121,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { loadWasm, getUpgradeGroups } from './wasm'
 import type { WasmModule, UpgradeGroup } from './wasm'
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+const isDark = ref(true)
+function toggleTheme() {
+  isDark.value = !isDark.value
+  document.body.classList.toggle('light-mode', !isDark.value)
+}
 
 // ── WASM state ─────────────────────────────────────────────────────────────
 const wasmReady = ref(false)
@@ -326,12 +336,61 @@ function useOutputAsInput() {
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 
+:root {
+  --bg-body: #0d1117;
+  --bg-card: #161b22;
+  --bg-input: #0d1117;
+  --bg-select: #21262d;
+  --border-color: #30363d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #c9d1d9;
+  --accent: #58a6ff;
+  --btn-secondary-bg: #21262d;
+  --preset-bg: #1f2e47;
+  --preset-color: #79c0ff;
+  --preset-border: #1f6feb;
+  --preset-hover: #1f6feb33;
+  --loading-bg: #1f2e47;
+  --loading-border: #1f6feb;
+  --loading-color: #79c0ff;
+  --error-bg: #3d1f1f;
+  --error-border: #f85149;
+  --error-color: #ffa198;
+  --error-code-bg: #21262d;
+}
+
+body.light-mode {
+  --bg-body: #f6f8fa;
+  --bg-card: #ffffff;
+  --bg-input: #f0f2f5;
+  --bg-select: #f0f2f5;
+  --border-color: #d0d7de;
+  --text-primary: #1f2328;
+  --text-secondary: #57606a;
+  --text-muted: #24292f;
+  --accent: #0969da;
+  --btn-secondary-bg: #f6f8fa;
+  --preset-bg: #dbeafe;
+  --preset-color: #1d4ed8;
+  --preset-border: #3b82f6;
+  --preset-hover: #3b82f633;
+  --loading-bg: #dbeafe;
+  --loading-border: #3b82f6;
+  --loading-color: #1d4ed8;
+  --error-bg: #fff0f0;
+  --error-border: #cf222e;
+  --error-color: #cf222e;
+  --error-code-bg: #f0f2f5;
+}
+
 body {
   margin: 0;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: #0d1117;
-  color: #e6edf3;
+  background: var(--bg-body);
+  color: var(--text-primary);
   min-height: 100vh;
+  transition: background 0.25s, color 0.25s;
 }
 
 .app {
@@ -343,17 +402,35 @@ body {
 .app-header {
   text-align: center;
   margin-bottom: 32px;
+  position: relative;
 }
 .app-header h1 {
   margin: 0 0 6px;
   font-size: 2rem;
   font-weight: 700;
-  color: #58a6ff;
+  color: var(--accent);
 }
 .subtitle {
   margin: 0;
-  color: #8b949e;
+  color: var(--text-secondary);
   font-size: 0.9rem;
+}
+.theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--bg-select);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Layout */
@@ -367,18 +444,19 @@ body {
 }
 
 .card {
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  transition: background 0.25s, border-color 0.25s;
 }
 .card h2 {
   margin: 0;
   font-size: 1rem;
-  color: #8b949e;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -387,18 +465,18 @@ body {
 .bp-textarea {
   flex: 1;
   min-height: 200px;
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  color: #e6edf3;
+  color: var(--text-primary);
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 0.78rem;
   padding: 10px;
   resize: vertical;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.25s, color 0.25s;
 }
-.bp-textarea:focus { border-color: #58a6ff; }
+.bp-textarea:focus { border-color: var(--accent); }
 
 /* Buttons */
 .btn {
@@ -420,19 +498,19 @@ body {
 }
 .btn-primary:not(:disabled):hover { background: #2ea043; }
 .btn-secondary {
-  background: #21262d;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
+  background: var(--btn-secondary-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
 }
-.btn-secondary:not(:disabled):hover { background: #30363d; }
+.btn-secondary:not(:disabled):hover { background: var(--border-color); }
 .btn-preset {
-  background: #1f2e47;
-  color: #79c0ff;
-  border: 1px solid #1f6feb;
+  background: var(--preset-bg);
+  color: var(--preset-color);
+  border: 1px solid var(--preset-border);
   font-size: 0.8rem;
   padding: 5px 10px;
 }
-.btn-preset:hover { background: #1f6feb33; }
+.btn-preset:hover { background: var(--preset-hover); }
 
 .run-btn {
   width: 100%;
@@ -449,7 +527,7 @@ body {
 }
 .group-label {
   font-size: 0.82rem;
-  color: #8b949e;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 .selects {
@@ -459,17 +537,18 @@ body {
 }
 .selects select {
   flex: 1;
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #e6edf3;
+  background: var(--bg-select);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 0.85rem;
   outline: none;
   cursor: pointer;
+  transition: background 0.25s, color 0.25s, border-color 0.2s;
 }
-.selects select:focus { border-color: #58a6ff; }
-.arrow { color: #58a6ff; font-weight: bold; }
+.selects select:focus { border-color: var(--accent); }
+.arrow { color: var(--accent); font-weight: bold; }
 
 /* Presets */
 .preset-section {
@@ -479,7 +558,7 @@ body {
 .preset-title {
   margin: 0 0 8px;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: var(--text-secondary);
 }
 .presets {
   display: flex;
@@ -496,14 +575,15 @@ body {
 }
 .compression-input {
   width: 56px;
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #e6edf3;
+  background: var(--bg-select);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   padding: 4px 8px;
   border-radius: 6px;
   text-align: center;
+  transition: background 0.25s, color 0.25s;
 }
-.hint { color: #8b949e; font-size: 0.75rem; }
+.hint { color: var(--text-secondary); font-size: 0.75rem; }
 
 /* Row */
 .row {
@@ -514,7 +594,7 @@ body {
 }
 .info-text {
   font-size: 0.8rem;
-  color: #8b949e;
+  color: var(--text-secondary);
   font-family: monospace;
   white-space: pre;
 }
@@ -530,17 +610,17 @@ body {
   font-size: 0.9rem;
 }
 .loading-banner {
-  background: #1f2e47;
-  border: 1px solid #1f6feb;
-  color: #79c0ff;
+  background: var(--loading-bg);
+  border: 1px solid var(--loading-border);
+  color: var(--loading-color);
 }
 .error-banner {
-  background: #3d1f1f;
-  border: 1px solid #f85149;
-  color: #ffa198;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error-color);
 }
 .error-banner code {
-  background: #21262d;
+  background: var(--error-code-bg);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -563,8 +643,8 @@ footer {
   text-align: center;
   margin-top: 40px;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: var(--text-secondary);
 }
-footer a { color: #58a6ff; text-decoration: none; }
+footer a { color: var(--accent); text-decoration: none; }
 footer a:hover { text-decoration: underline; }
 </style>
