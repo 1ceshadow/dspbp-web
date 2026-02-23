@@ -30,6 +30,10 @@
         />
         <div class="row">
           <button class="btn btn-secondary" @click="inputBp = ''; outputBp = ''; infoText = ''">清空</button>
+          <label class="btn btn-secondary file-upload-label" title="从 .txt 文件加载蓝图">
+            📂 从文件导入
+            <input type="file" accept=".txt,.blueprint" class="file-input-hidden" @change="onFileUpload" />
+          </label>
           <span v-if="infoText" class="info-text">{{ infoText }}</span>
         </div>
       </section>
@@ -106,6 +110,12 @@
             :disabled="!outputBp"
             @click="useOutputAsInput"
           >用作输入 (链式操作)</button>
+          <button
+            class="btn btn-secondary"
+            :disabled="!outputBp"
+            @click="saveAsFile"
+            title="保存为 .txt 文件"
+          >💾 保存为文件</button>
         </div>
       </section>
     </main>
@@ -330,6 +340,31 @@ function useOutputAsInput() {
   inputBp.value = outputBp.value
   outputBp.value = ''
   onInputChange()
+}
+
+function onFileUpload(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    inputBp.value = (e.target?.result as string).trim()
+    outputBp.value = ''
+    onInputChange()
+  }
+  reader.readAsText(file)
+  // Reset input so same file can be re-uploaded
+  ;(event.target as HTMLInputElement).value = ''
+}
+
+function saveAsFile() {
+  if (!outputBp.value) return
+  const blob = new Blob([outputBp.value], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'blueprint.txt'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 </script>
 
@@ -647,4 +682,17 @@ footer {
 }
 footer a { color: var(--accent); text-decoration: none; }
 footer a:hover { text-decoration: underline; }
+
+/* File upload */
+.file-upload-label {
+  cursor: pointer;
+  position: relative;
+}
+.file-input-hidden {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
 </style>
