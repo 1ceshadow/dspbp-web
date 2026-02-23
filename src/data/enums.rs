@@ -471,14 +471,13 @@ pub enum BPModel {
     AssemblingMachineMkIII = 67,
     ArcSmelter = 62,
     PlaneSmelter = 194,
-    // newer buildings (model IDs from community research)
+    // DLC / newer buildings (model IDs from community research)
     NegentropySmelter = 344,
     RecomposingAssembler = 373,
     QuantumChemicalPlant = 376,
     ChemicalPlant = 80,
     MatrixLab = 69,
     SelfevolutionLab = 418,
-    // TODO: verify AutomaticPiler (Pile Sorter) BP model ID from game files
 }
 
 impl BPModel {
@@ -534,7 +533,6 @@ impl From<DSPItem> for BuildingClass {
             DSPItem::SorterMKI => Self::Sorter,
             DSPItem::SorterMKII => Self::Sorter,
             DSPItem::SorterMKIII => Self::Sorter,
-            DSPItem::AutomaticPiler => Self::Sorter,
             DSPItem::ConveyorBeltMKI => Self::Belt,
             DSPItem::ConveyorBeltMKII => Self::Belt,
             DSPItem::ConveyorBeltMKIII => Self::Belt,

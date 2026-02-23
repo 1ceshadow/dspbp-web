@@ -168,11 +168,14 @@ import { loadWasm, getUpgradeGroups } from './wasm'
 import type { WasmModule, UpgradeGroup } from './wasm'
 
 // ── Theme ──────────────────────────────────────────────────────────────────
-const isDark = ref(true)
+const isDark = ref(false)
 function toggleTheme() {
   isDark.value = !isDark.value
   document.body.classList.toggle('light-mode', !isDark.value)
 }
+
+// Apply initial theme
+document.body.classList.add('light-mode')
 
 // ── WASM state ─────────────────────────────────────────────────────────────
 const wasmReady = ref(false)
@@ -273,14 +276,6 @@ const presets = [
     replacements: [
       { groupId: 'sorter', from: 'SorterMKI',  to: 'SorterMKIII' },
       { groupId: 'sorter', from: 'SorterMKII', to: 'SorterMKIII' },
-    ],
-  },
-  {
-    label: '分拣器全升至堆叠',
-    replacements: [
-      { groupId: 'sorter', from: 'SorterMKI',      to: 'AutomaticPiler' },
-      { groupId: 'sorter', from: 'SorterMKII',     to: 'AutomaticPiler' },
-      { groupId: 'sorter', from: 'SorterMKIII',    to: 'AutomaticPiler' },
     ],
   },
   {
