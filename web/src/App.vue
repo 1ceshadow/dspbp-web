@@ -276,6 +276,14 @@ const presets = [
     ],
   },
   {
+    label: '分拣器全升至堆叠',
+    replacements: [
+      { groupId: 'sorter', from: 'SorterMKI',      to: 'AutomaticPiler' },
+      { groupId: 'sorter', from: 'SorterMKII',     to: 'AutomaticPiler' },
+      { groupId: 'sorter', from: 'SorterMKIII',    to: 'AutomaticPiler' },
+    ],
+  },
+  {
     label: '制造台全部升至 Mk.III',
     replacements: [
       { groupId: 'assembler', from: 'AssemblingMachineMkI',  to: 'AssemblingMachineMkIII' },
