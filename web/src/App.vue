@@ -86,18 +86,22 @@
         </div>
         <div v-if="iconEditEnabled" class="icon-editor">
           <p class="hint" style="margin:0 0 8px;">
-            物品ID直接填写（如 <code>1001</code>=铁矿）；配方填写 <code>配方ID + 20000</code>（如 <code>20001</code>=铁锭配方）；留空或填 <code>0</code> 清除该槽。
+            搜索物品名称或直接输入 ID；配方图标用 <code>ID + 20000</code>（如 <code>20001</code>&#xff09;；留空清除。
+            <a href="https://dsp-wiki.com/Items" target="_blank" rel="noopener" class="wiki-link">🔗 DSP Wiki 物品列表</a>
           </p>
           <div class="icon-slots">
-            <div v-for="(_, i) in iconSlots" :key="i" class="icon-slot-row">
+            <div v-for="(_, i) in iconSearches" :key="i" class="icon-slot-row">
               <span class="icon-slot-label">图标 {{ i + 1 }}</span>
               <input
-                type="number"
                 class="icon-slot-input"
-                v-model="iconSlots[i]"
-                placeholder="0"
-                min="0"
+                :list="`icon-list-${i}`"
+                v-model="iconSearches[i]"
+                placeholder="搜索物品名或 ID，留空清除"
+                autocomplete="off"
               />
+              <datalist :id="`icon-list-${i}`">
+                <option v-for="item in iconList" :key="item.id" :value="`${item.name} (${item.id})`" />
+              </datalist>
             </div>
           </div>
         </div>
@@ -184,10 +188,13 @@ onMounted(async () => {
     for (const g of groups) {
       selections[g.id] = { from: '', to: '' }
     }
+    // Load item list for icon editor
+    try {
+      itemList.value = JSON.parse(wasm.item_list()) as { id: number; name: string }[]
+    } catch { /* ignore */ }
     wasmReady.value = true
   } catch (e: unknown) {
     wasmError.value = e instanceof Error ? e.message : String(e)
-    // Show UI anyway so user can see the error message
     wasmReady.value = true
   }
 })
@@ -201,16 +208,26 @@ const runError = ref('')
 const copied = ref(false)
 
 // ── Icon editing ───────────────────────────────────────────────────────────
-// 5 icon slots; each is a string so the input can be empty
-const iconSlots = ref<string[]>(['', '', '', '', ''])
 const iconEditEnabled = ref(false)
+const iconList = ref<{ id: number; name: string }[]>([])
+const itemList = iconList   // alias used in onMounted
+// text displayed per slot: "负熵小柜 (1127)" or raw number or empty
+const iconSearches = ref<string[]>(['', '', '', '', ''])
+
+function iconIdFromSearch(s: string): number {
+  if (!s.trim()) return 0
+  const m = s.match(/\((\d+)\)$/)
+  if (m) return parseInt(m[1], 10)
+  const n = parseInt(s.trim(), 10)
+  return isNaN(n) ? 0 : n
+}
 
 function onInputChange() {
   outputBp.value = ''
   runError.value = ''
   if (!wasm || !inputBp.value.trim()) {
     infoText.value = ''
-    iconSlots.value = ['', '', '', '', '']
+    iconSearches.value = ['', '', '', '', '']
     return
   }
   try {
@@ -221,9 +238,13 @@ function onInputChange() {
   // Load current icon values
   try {
     const icons: number[] = JSON.parse(wasm.get_blueprint_icons(inputBp.value.trim()))
-    iconSlots.value = icons.map(v => v === 0 ? '' : String(v))
+    iconSearches.value = icons.map(v => {
+      if (!v) return ''
+      const item = iconList.value.find(it => it.id === v)
+      return item ? `${item.name} (${item.id})` : String(v)
+    })
   } catch {
-    iconSlots.value = ['', '', '', '', '']
+    iconSearches.value = ['', '', '', '', '']
   }
 }
 
@@ -268,14 +289,14 @@ const presets = [
     ],
   },
   {
-    label: '熔炉 全部→负熵 (DLC)',
+    label: '熔炉 全部→负熵',
     replacements: [
       { groupId: 'smelter', from: 'ArcSmelter',   to: 'NegentropySmelter' },
       { groupId: 'smelter', from: 'PlaneSmelter', to: 'NegentropySmelter' },
     ],
   },
   {
-    label: '制造台全部→重组式 (DLC)',
+    label: '制造台全部→重组式',
     replacements: [
       { groupId: 'assembler', from: 'AssemblingMachineMkI',  to: 'RecomposingAssembler' },
       { groupId: 'assembler', from: 'AssemblingMachineMkII', to: 'RecomposingAssembler' },
@@ -283,13 +304,13 @@ const presets = [
     ],
   },
   {
-    label: '化工厂→量子化工厂 (DLC)',
+    label: '化工厂→量子化工厂',
     replacements: [
       { groupId: 'chemplant', from: 'ChemicalPlant', to: 'QuantumChemicalPlant' },
     ],
   },
   {
-    label: '研究站→自演化 (DLC)',
+    label: '研究站→自演化',
     replacements: [
       { groupId: 'lab', from: 'MatrixLab', to: 'SelfevolutionLab' },
     ],
@@ -307,7 +328,7 @@ const presets = [
     ],
   },
   {
-    label: '全部升级 含DLC',
+    label: '全部升级 (含负熵系)',
     replacements: [
       { groupId: 'belt',      from: 'ConveyorBeltMKI',        to: 'ConveyorBeltMKIII' },
       { groupId: 'belt',      from: 'ConveyorBeltMKII',       to: 'ConveyorBeltMKIII' },
@@ -406,9 +427,8 @@ function run() {
       )
       // Apply icon changes if enabled
       if (iconEditEnabled.value) {
-        const updates = iconSlots.value
-          .map((v, i) => ({ slot: i, value: v === '' ? 0 : parseInt(v, 10) || 0 }))
-          .filter(u => true) // apply all 5 slots
+        const updates = iconSearches.value
+          .map((s, i) => ({ slot: i, value: iconIdFromSearch(s) }))
         result = wasm!.set_blueprint_icons(
           result,
           JSON.stringify(updates),
@@ -843,5 +863,14 @@ footer a:hover { text-decoration: underline; }
 .icon-slot-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+.wiki-link {
+  color: var(--accent);
+  font-size: 0.82rem;
+  text-decoration: none;
+  margin-left: 6px;
+}
+.wiki-link:hover {
+  text-decoration: underline;
 }
 </style>

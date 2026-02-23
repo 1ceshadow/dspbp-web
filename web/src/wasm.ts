@@ -41,6 +41,8 @@ export interface WasmModule {
     icons_json: string,
     compression_level: number
   ): string
+  /** Returns JSON array [{id: number, name: string}, ...] of all items (Chinese names). */
+  item_list(): string
 }
 
 let _wasm: WasmModule | null = null

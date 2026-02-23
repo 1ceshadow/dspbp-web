@@ -11,6 +11,7 @@ use crate::{
     },
     edit::{stats::GetStats, EditBlueprint},
     error::some_error,
+    locale,
 };
 
 #[wasm_bindgen(start)]
@@ -172,7 +173,7 @@ pub fn upgrade_groups() -> String {
       {"id": "AssemblingMachineMkI",    "label": "制造台 Mk.I"},
       {"id": "AssemblingMachineMkII",   "label": "制造台 Mk.II"},
       {"id": "AssemblingMachineMkIII",  "label": "制造台 Mk.III"},
-      {"id": "RecomposingAssembler",    "label": "重组式制造台 (DLC)"}
+      {"id": "RecomposingAssembler",    "label": "重组式制造台"}
     ]
   },
   {
@@ -181,7 +182,7 @@ pub fn upgrade_groups() -> String {
     "members": [
       {"id": "ArcSmelter",        "label": "电弧熔炉"},
       {"id": "PlaneSmelter",      "label": "位面熔炉"},
-      {"id": "NegentropySmelter", "label": "负熵熔炉 (DLC)"}
+      {"id": "NegentropySmelter", "label": "负熵熔炉"}
     ]
   },
   {
@@ -189,7 +190,7 @@ pub fn upgrade_groups() -> String {
     "label": "化工厂 (Chemical Plant)",
     "members": [
       {"id": "ChemicalPlant",        "label": "化工厂"},
-      {"id": "QuantumChemicalPlant", "label": "量子化工厂 (DLC)"}
+      {"id": "QuantumChemicalPlant", "label": "量子化工厂"}
     ]
   },
   {
@@ -197,10 +198,22 @@ pub fn upgrade_groups() -> String {
     "label": "研究站 (Matrix Lab)",
     "members": [
       {"id": "MatrixLab",        "label": "矩阵研究站"},
-      {"id": "SelfevolutionLab", "label": "自演化研究站 (DLC)"}
+      {"id": "SelfevolutionLab", "label": "自演化研究站"}
     ]
   }
 ]"#.to_owned()
+}
+
+/// Return a JSON array of all in-game items with their IDs and Chinese names.
+/// Format: [{"id": 1001, "name": "铁矿"}, ...]
+#[wasm_bindgen]
+pub fn item_list() -> String {
+    let items = locale::all_items_cn();
+    let entries: Vec<String> = items
+        .iter()
+        .map(|(id, name)| format!("{{\"id\":{},\"name\":\"{}\"}}", id, name))
+        .collect();
+    format!("[{}]", entries.join(","))
 }
 
 /// Get the 5 blueprint icon slots as a JSON array of u32 values.
