@@ -77,6 +77,31 @@
           <span class="hint"><!-- -->(1–9，默认 6；设为 9 可减小约 5% 体积)</span>
         </div>
 
+        <!-- 蓝图图标编辑 -->
+        <div class="option-row">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" v-model="iconEditEnabled" />
+            编辑蓝图图标（5个槽位）
+          </label>
+        </div>
+        <div v-if="iconEditEnabled" class="icon-editor">
+          <p class="hint" style="margin:0 0 8px;">
+            物品ID直接填写（如 <code>1001</code>=铁矿）；配方填写 <code>配方ID + 20000</code>（如 <code>20001</code>=铁锭配方）；留空或填 <code>0</code> 清除该槽。
+          </p>
+          <div class="icon-slots">
+            <div v-for="(_, i) in iconSlots" :key="i" class="icon-slot-row">
+              <span class="icon-slot-label">图标 {{ i + 1 }}</span>
+              <input
+                type="number"
+                class="icon-slot-input"
+                v-model="iconSlots[i]"
+                placeholder="0"
+                min="0"
+              />
+            </div>
+          </div>
+        </div>
+
         <button
           class="btn btn-primary run-btn"
           :disabled="!inputBp.trim() || running"
@@ -175,18 +200,30 @@ const running = ref(false)
 const runError = ref('')
 const copied = ref(false)
 
+// ── Icon editing ───────────────────────────────────────────────────────────
+// 5 icon slots; each is a string so the input can be empty
+const iconSlots = ref<string[]>(['', '', '', '', ''])
+const iconEditEnabled = ref(false)
+
 function onInputChange() {
   outputBp.value = ''
   runError.value = ''
-  // Try to get quick info
   if (!wasm || !inputBp.value.trim()) {
     infoText.value = ''
+    iconSlots.value = ['', '', '', '', '']
     return
   }
   try {
     infoText.value = wasm.blueprint_info(inputBp.value.trim())
   } catch {
     infoText.value = ''
+  }
+  // Load current icon values
+  try {
+    const icons: number[] = JSON.parse(wasm.get_blueprint_icons(inputBp.value.trim()))
+    iconSlots.value = icons.map(v => v === 0 ? '' : String(v))
+  } catch {
+    iconSlots.value = ['', '', '', '', '']
   }
 }
 
@@ -231,6 +268,33 @@ const presets = [
     ],
   },
   {
+    label: '熔炉 全部→负熵 (DLC)',
+    replacements: [
+      { groupId: 'smelter', from: 'ArcSmelter',   to: 'NegentropySmelter' },
+      { groupId: 'smelter', from: 'PlaneSmelter', to: 'NegentropySmelter' },
+    ],
+  },
+  {
+    label: '制造台全部→重组式 (DLC)',
+    replacements: [
+      { groupId: 'assembler', from: 'AssemblingMachineMkI',  to: 'RecomposingAssembler' },
+      { groupId: 'assembler', from: 'AssemblingMachineMkII', to: 'RecomposingAssembler' },
+      { groupId: 'assembler', from: 'AssemblingMachineMkIII', to: 'RecomposingAssembler' },
+    ],
+  },
+  {
+    label: '化工厂→量子化工厂 (DLC)',
+    replacements: [
+      { groupId: 'chemplant', from: 'ChemicalPlant', to: 'QuantumChemicalPlant' },
+    ],
+  },
+  {
+    label: '研究站→自演化 (DLC)',
+    replacements: [
+      { groupId: 'lab', from: 'MatrixLab', to: 'SelfevolutionLab' },
+    ],
+  },
+  {
     label: '全部升级 (带+拣+炉+台)',
     replacements: [
       { groupId: 'belt',      from: 'ConveyorBeltMKI',       to: 'ConveyorBeltMKIII' },
@@ -240,6 +304,22 @@ const presets = [
       { groupId: 'assembler', from: 'AssemblingMachineMkI',  to: 'AssemblingMachineMkIII' },
       { groupId: 'assembler', from: 'AssemblingMachineMkII', to: 'AssemblingMachineMkIII' },
       { groupId: 'smelter',   from: 'ArcSmelter',            to: 'PlaneSmelter' },
+    ],
+  },
+  {
+    label: '全部升级 含DLC',
+    replacements: [
+      { groupId: 'belt',      from: 'ConveyorBeltMKI',        to: 'ConveyorBeltMKIII' },
+      { groupId: 'belt',      from: 'ConveyorBeltMKII',       to: 'ConveyorBeltMKIII' },
+      { groupId: 'sorter',    from: 'SorterMKI',              to: 'SorterMKIII' },
+      { groupId: 'sorter',    from: 'SorterMKII',             to: 'SorterMKIII' },
+      { groupId: 'assembler', from: 'AssemblingMachineMkI',   to: 'RecomposingAssembler' },
+      { groupId: 'assembler', from: 'AssemblingMachineMkII',  to: 'RecomposingAssembler' },
+      { groupId: 'assembler', from: 'AssemblingMachineMkIII', to: 'RecomposingAssembler' },
+      { groupId: 'smelter',   from: 'ArcSmelter',             to: 'NegentropySmelter' },
+      { groupId: 'smelter',   from: 'PlaneSmelter',           to: 'NegentropySmelter' },
+      { groupId: 'chemplant', from: 'ChemicalPlant',          to: 'QuantumChemicalPlant' },
+      { groupId: 'lab',       from: 'MatrixLab',              to: 'SelfevolutionLab' },
     ],
   },
 ]
@@ -316,7 +396,7 @@ function run() {
   setTimeout(() => {
     try {
       const replaceBuilding = buildReplaceBuildingString()
-      const result = wasm!.edit_blueprint(
+      let result = wasm!.edit_blueprint(
         bp,
         replaceBuilding,
         '', // replace_item
@@ -324,6 +404,17 @@ function run() {
         '', // replace_both
         compressionLevel.value
       )
+      // Apply icon changes if enabled
+      if (iconEditEnabled.value) {
+        const updates = iconSlots.value
+          .map((v, i) => ({ slot: i, value: v === '' ? 0 : parseInt(v, 10) || 0 }))
+          .filter(u => true) // apply all 5 slots
+        result = wasm!.set_blueprint_icons(
+          result,
+          JSON.stringify(updates),
+          compressionLevel.value
+        )
+      }
       outputBp.value = result
     } catch (e: unknown) {
       runError.value = e instanceof Error ? e.message : String(e)
@@ -715,5 +806,42 @@ footer a:hover { text-decoration: underline; }
   opacity: 0;
   cursor: pointer;
   width: 100%;
+}
+
+/* Icon editor */
+.icon-editor {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.icon-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.icon-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.icon-slot-label {
+  width: 52px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.icon-slot-input {
+  flex: 1;
+  background: var(--bg-select);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  padding: 4px 8px;
+}
+.icon-slot-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 </style>
