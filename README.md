@@ -3,7 +3,7 @@
 > **本项目是 [Wesmania/dspbp](https://github.com/Wesmania/dspbp)（MIT License）的派生项目。**  
 > Rust 核心库来自上游，本项目新增了 **WebAssembly 绑定** 和 **Vue 3 网页前端**，使任何人无需安装软件即可在浏览器中使用蓝图升降级功能。
 
-**🌐 在线体验：[https://1ceshadow.github.io/dspdp-web/](https://1ceshadow.github.io/dspdp-web/)**
+**🌐 在线体验：[https://1ceshadow.github.io/dspbp-web/](https://1ceshadow.github.io/dspbp-web/)**
 
 ---
 
@@ -31,7 +31,7 @@
 
 ## 网页版使用方法
 
-访问 **[https://1ceshadow.github.io/dspdp-web/](https://1ceshadow.github.io/dspdp-web/)**，无需安装任何软件：
+访问 **[https://1ceshadow.github.io/dspbp-web/](https://1ceshadow.github.io/dspbp-web/)**，无需安装任何软件：
 
 1. **粘贴蓝图** — 将游戏中复制的蓝图字符串粘贴到输入框
 2. **配置升降级** — 从下拉菜单选择各建筑类型的替换方案，或点击快捷预设按钮

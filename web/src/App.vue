@@ -122,7 +122,7 @@
 
     <footer>
       <div class="footer-links">
-        <a href="https://github.com/1ceshadow/dspdp-web" target="_blank" rel="noopener">📦 本项目 GitHub</a>
+        <a href="https://github.com/1ceshadow/dspbp-web" target="_blank" rel="noopener">📦 本项目 GitHub</a>
         <span class="footer-sep">·</span>
         <a href="https://dsp-wiki.com" target="_blank" rel="noopener">📖 DSP Wiki</a>
         <span class="footer-sep">·</span>
