@@ -85,6 +85,24 @@ localized_enum_impl!(DSPItem, DSP_ENUM_LOCALE, DSP_ITEM_LLIST);
 localized_enum_impl!(DSPRecipe, DSP_RECIPE_LOCALE, DSP_RECIPE_LLIST);
 localized_enum_impl!(BPModel, BP_MODEL_LOCALE, DSP_MODEL_LLIST);
 
+/// Returns all DSP items as (numeric_id, cn_name) pairs, sorted by id.
+pub fn all_items_cn() -> Vec<(u16, &'static str)> {
+    let mut list: Vec<(u16, &'static str)> = DSP_ITEM_LLIST
+        .iter()
+        .find(|l| l.0 == Locale::cn)
+        .map(|l| {
+            l.1.iter()
+                .map(|(item, name)| {
+                    let id: u16 = (*item).into();
+                    (id, *name)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    list.sort_by_key(|(id, _)| *id);
+    list
+}
+
 impl LocalizedEnumImpl for DSPIcon {
     fn localize(&self) -> Option<&'static str> {
         match self {

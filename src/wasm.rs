@@ -11,6 +11,7 @@ use crate::{
     },
     edit::{stats::GetStats, EditBlueprint},
     error::some_error,
+    locale,
 };
 
 #[wasm_bindgen(start)]
@@ -169,18 +170,89 @@ pub fn upgrade_groups() -> String {
     "id": "assembler",
     "label": "制造台 (Assembler)",
     "members": [
-      {"id": "AssemblingMachineMkI",   "label": "制造台 Mk.I"},
-      {"id": "AssemblingMachineMkII",  "label": "制造台 Mk.II"},
-      {"id": "AssemblingMachineMkIII", "label": "制造台 Mk.III"}
+      {"id": "AssemblingMachineMkI",    "label": "制造台 Mk.I"},
+      {"id": "AssemblingMachineMkII",   "label": "制造台 Mk.II"},
+      {"id": "AssemblingMachineMkIII",  "label": "制造台 Mk.III"},
+      {"id": "RecomposingAssembler",    "label": "重组式制造台"}
     ]
   },
   {
     "id": "smelter",
     "label": "熔炉 (Smelter)",
     "members": [
-      {"id": "ArcSmelter",   "label": "电弧熔炉"},
-      {"id": "PlaneSmelter", "label": "位面熔炉"}
+      {"id": "ArcSmelter",        "label": "电弧熔炉"},
+      {"id": "PlaneSmelter",      "label": "位面熔炉"},
+      {"id": "NegentropySmelter", "label": "负熵熔炉"}
+    ]
+  },
+  {
+    "id": "chemplant",
+    "label": "化工厂 (Chemical Plant)",
+    "members": [
+      {"id": "ChemicalPlant",        "label": "化工厂"},
+      {"id": "QuantumChemicalPlant", "label": "量子化工厂"}
+    ]
+  },
+  {
+    "id": "lab",
+    "label": "研究站 (Matrix Lab)",
+    "members": [
+      {"id": "MatrixLab",        "label": "矩阵研究站"},
+      {"id": "SelfevolutionLab", "label": "自演化研究站"}
     ]
   }
 ]"#.to_owned()
+}
+
+/// Return a JSON array of all in-game items with their IDs and Chinese names.
+/// Format: [{"id": 1001, "name": "铁矿"}, ...]
+#[wasm_bindgen]
+pub fn item_list() -> String {
+    let items = locale::all_items_cn();
+    let entries: Vec<String> = items
+        .iter()
+        .map(|(id, name)| format!("{{\"id\":{},\"name\":\"{}\"}}", id, name))
+        .collect();
+    format!("[{}]", entries.join(","))
+}
+
+/// Get the 5 blueprint icon slots as a JSON array of u32 values.
+/// Icons use DSP's encoding: items 1000-19999, recipes 20000+, signals 0-999.
+#[wasm_bindgen]
+pub fn get_blueprint_icons(bp_string: &str) -> Result<String, JsValue> {
+    let inner = || -> anyhow::Result<String> {
+        let bp = Blueprint::new(bp_string)?;
+        let icons: Vec<u32> = bp.icons.to_vec();
+        Ok(serde_json::to_string(&icons)?)
+    };
+    inner().map_err(|e| JsValue::from_str(&format!("{:#}", e)))
+}
+
+/// Set individual blueprint icon slots.
+/// `icons_json` is a JSON array of up to 5 objects: [{"slot": 0, "value": 1001}, ...]
+/// slot is 0-4; value uses DSP encoding (item id, or recipe id + 20000, or 0 to clear).
+#[wasm_bindgen]
+pub fn set_blueprint_icons(
+    bp_string: &str,
+    icons_json: &str,
+    compression_level: u32,
+) -> Result<String, JsValue> {
+    let inner = || -> anyhow::Result<String> {
+        let mut bp = Blueprint::new(bp_string)?;
+        let updates: Vec<serde_json::Value> = serde_json::from_str(icons_json)?;
+        for item in &updates {
+            let slot = item["slot"]
+                .as_u64()
+                .ok_or_else(|| crate::error::some_error("missing \"slot\" field"))? as usize;
+            let value = item["value"]
+                .as_u64()
+                .ok_or_else(|| crate::error::some_error("missing \"value\" field"))? as u32;
+            if slot >= 5 {
+                anyhow::bail!("icon slot {} out of range (0-4)", slot);
+            }
+            bp.icons[slot] = value;
+        }
+        bp.into_bp_string(compression_level)
+    };
+    inner().map_err(|e| JsValue::from_str(&format!("{:#}", e)))
 }
