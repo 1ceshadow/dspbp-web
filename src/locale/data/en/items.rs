@@ -108,6 +108,7 @@
     (DSPItem::SorterMKI, "Sorter MK.I"),
     (DSPItem::SorterMKII, "Sorter MK.II"),
     (DSPItem::SorterMKIII, "Sorter MK.III"),
+    (DSPItem::SorterMKIV, "Sorter MK.IV"),
     (DSPItem::Splitter, "Splitter"),
     (DSPItem::AutomaticPiler, "Automatic Piler"),
     (DSPItem::TrafficMonitor, "Traffic Monitor"),

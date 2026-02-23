@@ -91,6 +91,7 @@
     (DSPRecipe::SorterMKIII, "极速分拣器"),
     (DSPRecipe::DepotMKII, "大型储物仓"),
     (DSPRecipe::ConveyorBeltMKIII, "极速传送带"),
+    (DSPRecipe::SorterMKIV, "集装分拣器"),
     (DSPRecipe::PlanetaryLogisticsStation, "行星内物流运输站"),
     (DSPRecipe::LogisticsDrone, "物流运输机"),
     (DSPRecipe::InterstellarLogisticsStation, "星际物流运输站"),

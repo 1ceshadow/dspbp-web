@@ -320,6 +320,14 @@ const presets = [
     ],
   },
   {
+    label: '分拣器全部升至集装分拣器',
+    replacements: [
+      { groupId: 'sorter', from: 'SorterMKI',   to: 'SorterMKIV' },
+      { groupId: 'sorter', from: 'SorterMKII',  to: 'SorterMKIV' },
+      { groupId: 'sorter', from: 'SorterMKIII', to: 'SorterMKIV' },
+    ],
+  },
+  {
     label: '制造台全部升至 Mk.III',
     replacements: [
       { groupId: 'assembler', from: 'AssemblingMachineMkI',  to: 'AssemblingMachineMkIII' },
@@ -376,8 +384,9 @@ const presets = [
     replacements: [
       { groupId: 'belt',      from: 'ConveyorBeltMKI',        to: 'ConveyorBeltMKIII' },
       { groupId: 'belt',      from: 'ConveyorBeltMKII',       to: 'ConveyorBeltMKIII' },
-      { groupId: 'sorter',    from: 'SorterMKI',              to: 'SorterMKIII' },
-      { groupId: 'sorter',    from: 'SorterMKII',             to: 'SorterMKIII' },
+      { groupId: 'sorter',    from: 'SorterMKI',              to: 'SorterMKIV' },
+      { groupId: 'sorter',    from: 'SorterMKII',             to: 'SorterMKIV' },
+      { groupId: 'sorter',    from: 'SorterMKIII',            to: 'SorterMKIV' },
       { groupId: 'assembler', from: 'AssemblingMachineMkI',   to: 'RecomposingAssembler' },
       { groupId: 'assembler', from: 'AssemblingMachineMkII',  to: 'RecomposingAssembler' },
       { groupId: 'assembler', from: 'AssemblingMachineMkIII', to: 'RecomposingAssembler' },

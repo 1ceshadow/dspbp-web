@@ -191,7 +191,8 @@ pub fn upgrade_groups() -> String {
     "members": [
       {"id": "SorterMKI",   "label": "分拣器 Mk.I"},
       {"id": "SorterMKII",  "label": "分拣器 Mk.II"},
-      {"id": "SorterMKIII", "label": "分拣器 Mk.III"}
+      {"id": "SorterMKIII", "label": "分拣器 Mk.III"},
+      {"id": "SorterMKIV",  "label": "集装分拣器"}
     ]
   },
   {

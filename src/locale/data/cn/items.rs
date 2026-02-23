@@ -108,6 +108,7 @@
     (DSPItem::SorterMKI, "分拣器"),
     (DSPItem::SorterMKII, "高速分拣器"),
     (DSPItem::SorterMKIII, "极速分拣器"),
+    (DSPItem::SorterMKIV, "集装分拣器"),
     (DSPItem::Splitter, "四向分流器"),
     (DSPItem::AutomaticPiler, "自动集装机"),
     (DSPItem::TrafficMonitor, "流速监测器"),

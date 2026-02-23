@@ -91,6 +91,7 @@
     (DSPRecipe::SorterMKIII, "Sorter MK.III"),
     (DSPRecipe::DepotMKII, "Depot MK.II"),
     (DSPRecipe::ConveyorBeltMKIII, "Conveyor Belt MK.III"),
+    (DSPRecipe::SorterMKIV, "Sorter MK.IV"),
     (DSPRecipe::PlanetaryLogisticsStation, "Planetary Logistics Station"),
     (DSPRecipe::LogisticsDrone, "Logistics Drone"),
     (DSPRecipe::InterstellarLogisticsStation, "Interstellar Logistics Station"),

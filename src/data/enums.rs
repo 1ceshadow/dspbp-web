@@ -129,6 +129,7 @@ pub enum DSPItem {
     SorterMKI = 2011,
     SorterMKII = 2012,
     SorterMKIII = 2013,
+    SorterMKIV = 2014,
     Splitter = 2020,
     AutomaticPiler = 2040,
     TrafficMonitor = 2030,
@@ -396,6 +397,7 @@ pub enum DSPRecipe {
     RecomposingAssembler = 154,
     NegentropySmelter = 155,
     StrangeAnnihilationFuelRod = 156,
+    SorterMKIV = 160,
     //DSPRecipe enum end
 }
 
@@ -466,6 +468,7 @@ pub enum BPModel {
     SorterMKI = 41,
     SorterMKII = 42,
     SorterMKIII = 43,
+    SorterMKIV = 483,
     AssemblingMachineMkI = 65,
     AssemblingMachineMkII = 66,
     AssemblingMachineMkIII = 67,
@@ -489,6 +492,7 @@ impl BPModel {
             DSPItem::SorterMKI => Self::SorterMKI,
             DSPItem::SorterMKII => Self::SorterMKII,
             DSPItem::SorterMKIII => Self::SorterMKIII,
+            DSPItem::SorterMKIV => Self::SorterMKIV,
             DSPItem::AssemblingMachineMkI => Self::AssemblingMachineMkI,
             DSPItem::AssemblingMachineMkII => Self::AssemblingMachineMkII,
             DSPItem::AssemblingMachineMkIII => Self::AssemblingMachineMkIII,
@@ -533,6 +537,7 @@ impl From<DSPItem> for BuildingClass {
             DSPItem::SorterMKI => Self::Sorter,
             DSPItem::SorterMKII => Self::Sorter,
             DSPItem::SorterMKIII => Self::Sorter,
+            DSPItem::SorterMKIV => Self::Sorter,
             DSPItem::ConveyorBeltMKI => Self::Belt,
             DSPItem::ConveyorBeltMKII => Self::Belt,
             DSPItem::ConveyorBeltMKIII => Self::Belt,
