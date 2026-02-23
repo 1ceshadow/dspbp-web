@@ -226,7 +226,7 @@ export const ITEM_ICONS: Record<number, ItemMeta> = {
 export function getItemIconUrl(itemId: number): string | undefined {
   const meta = ITEM_ICONS[itemId]
   if (!meta) return undefined
-  return `/icons/item_recipe/${meta.icon}.png`
+  return `${import.meta.env.BASE_URL}icons/item_recipe/${meta.icon}.png`
 }
 
 export function getItemName(itemId: number): string {
