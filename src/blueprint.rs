@@ -136,6 +136,12 @@ impl Blueprint {
         let fixed0_2: u32 = Self::int(fixed0_2, "fixed0_2")?;
         let timestamp = Self::int(timestamp, "timestamp")?;
 
+        // if fixed0_1 != 0 {
+        //     return Err(some_error("fixed0_1 is not 0"));
+        // }
+        // if fixed0_2 != 0 {
+        //     return Err(some_error("fixed0_2 is not 0"));
+        // }
         // fixed0_1 and fixed0_2 were assumed to always be 0, but newer game
         // versions or non-standard tools may use other values — ignore them.
 

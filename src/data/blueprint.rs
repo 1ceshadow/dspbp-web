@@ -29,7 +29,8 @@ pub struct Header {
 #[cfg_attr(feature = "dump", derive(Serialize, Deserialize))]
 #[derive(BinRead, BinWrite)]
 pub struct BlueprintData {
-    #[br(assert(header.version == 1))]
+    // #[br(assert(header.version == 1))]
+    // Version check relaxed: newer game versions may use version > 1
     pub header: Header,
     #[br(count = header.area_count)]
     pub areas: Vec<Area>,
