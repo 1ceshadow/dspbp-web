@@ -107,17 +107,20 @@ impl Blueprint {
         data = &data[PREFIX.len()..];
 
         let fields: Vec<&str> = data.split(',').collect();
-        if fields.len() != 12 {
+        if fields.len() < 12 {
             return Err(some_error(format!(
-                "Expected 12 CSV elements, got {}",
+                "Expected at least 12 CSV elements, got {}",
                 fields.len()
             )));
         }
 
         let [fixed0_1, layout]: [&str; 2] = fields[0..2].try_into().unwrap();
         let icons = &fields[2..7];
-        let [fixed0_2, timestamp, game_version, icon_text, desc_plus_b64data]: [&str; 5] =
-            fields[7..12].try_into().unwrap();
+        let [fixed0_2, timestamp, game_version, icon_text]: [&str; 4] =
+            fields[7..11].try_into().unwrap();
+        // Rejoin any extra fields beyond index 11 — the description may contain commas
+        let desc_plus_b64data_owned: String = fields[11..].join(",");
+        let desc_plus_b64data: &str = &desc_plus_b64data_owned;
         let [desc, b64data]: [&str; 2] = desc_plus_b64data
             .split('"')
             .collect::<Vec<&str>>()
