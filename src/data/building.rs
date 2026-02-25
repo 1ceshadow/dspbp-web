@@ -41,53 +41,33 @@ pub enum BuildingParam {
 
 #[cfg_attr(feature = "dump", derive(Serialize, Deserialize))]
 #[derive(BinRead, BinWrite)]
+#[br(little)]
 pub struct BuildingHeader {
-    // Per-building V2 detection (mirrors the reference JavaScript parser logic):
-    //   const index = r.getInt32();
-    //   const v2 = index <= -100;
-    //
-    // If first_int <= -100 → V2 building format:
-    //   - first_int is the magic_version sentinel
-    //   - index_v2 (the real building index) follows immediately
-    //   - tilt_v2 (f32) is present after yaw2
-    // Otherwise → V1 building format:
-    //   - first_int IS the building index; no extra fields
-    #[br(little)]
-    pub first_int: i32,
+    // DSP >= 0.10.30.22239 ("V10") prepends a magic_version i32 before the
+    // building index and appends a tilt f32 after yaw2.  Detection is done via
+    // the global is_v10() flag set from the CSV game_version field, which is
+    // the same approach used by the dspbp-master reference implementation.
+    #[br(if(crate::version::is_v10()))]
+    #[bw(if(crate::version::is_v10()))]
+    pub magic_version: i32,
 
-    // V2 only: actual building index (first_int was the sentinel).
-    #[br(if(first_int <= -100), little)]
-    #[bw(if(*first_int <= -100), little)]
-    pub index_v2: u32,
-
+    pub index: i32,
     pub area_index: i8,
-    #[br(little)]
     pub local_offset_x: f32,
-    #[br(little)]
     pub local_offset_y: f32,
-    #[br(little)]
     pub local_offset_z: f32,
-    #[br(little)]
     pub local_offset_x2: f32,
-    #[br(little)]
     pub local_offset_y2: f32,
-    #[br(little)]
     pub local_offset_z2: f32,
-    #[br(little)]
     pub yaw: f32,
-    #[br(little)]
     pub yaw2: f32,
-    // V2 only: tilt angle (0.0 for V1 buildings).
-    #[br(if(first_int <= -100), little)]
-    #[bw(if(*first_int <= -100), little)]
-    pub tilt_v2: f32,
-    #[br(little)]
+    // Present only in V10 blueprints.
+    #[br(if(crate::version::is_v10()))]
+    #[bw(if(crate::version::is_v10()))]
+    pub tilt: f32,
     pub item_id: ItemId<u16>,
-    #[br(little)]
     pub model_index: BPModelId<u16>,
-    #[br(little)]
     pub output_object_index: u32,
-    #[br(little)]
     pub input_object_index: u32,
     pub output_to_slot: i8,
     pub input_from_slot: i8,
@@ -95,31 +75,9 @@ pub struct BuildingHeader {
     pub input_to_slot: i8,
     pub output_offset: i8,
     pub input_offset: i8,
-    #[br(little)]
     pub recipe_id: RecipeId<u16>,
-    #[br(little)]
     pub filter_id: ItemId<u16>,
-    #[br(little)]
     pub parameter_count: u16,
-}
-
-impl BuildingHeader {
-    /// Returns the building's logical index.
-    pub fn index(&self) -> u32 {
-        if self.first_int <= -100 {
-            self.index_v2
-        } else {
-            self.first_int as u32
-        }
-    }
-    /// Returns true when this building was encoded in V2 binary format.
-    pub fn is_v2(&self) -> bool {
-        self.first_int <= -100
-    }
-    /// Returns the tilt angle (0.0 for V1 buildings).
-    pub fn tilt(&self) -> f32 {
-        self.tilt_v2
-    }
 }
 
 #[cfg_attr(feature = "dump", derive(Serialize, Deserialize))]

@@ -262,4 +262,49 @@ mod test {
             );
         }
     }
+
+    /// Take an existing V1 blueprint, change its game_version to a V10 value,
+    /// re-serialize (which writes magic_version+tilt per building), then
+    /// re-parse the resulting V10 string.  Verifies the full V10 encode/decode
+    /// cycle without requiring a real game-generated V10 blueprint file.
+    #[test]
+    fn v10_encode_decode_round_trip() {
+        // Use the first .txt file we can find.
+        let files = all_example_files();
+        assert!(!files.is_empty(), "No .txt files found in examples/");
+        let path = &files[0];
+        let raw_bytes = std::fs::read(path).unwrap();
+        let raw = std::str::from_utf8(&raw_bytes).unwrap().trim();
+
+        // Parse as original (pre-V10) version.
+        let mut bp = Blueprint::new(raw).expect("initial parse failed");
+        let original_count = bp.data.buildings.len();
+
+        // Force V10 game version — from here all serialisation/parsing uses V10 format.
+        bp.game_version = "0.10.34.28470".to_string();
+
+        // Re-serialise: is_v10()=true → CSV has fixed0_1=1 + extra commas,
+        // and binary has magic_version + tilt per building.
+        let v10_str = bp.into_bp_string(6).expect("V10 serialize failed");
+
+        // Confirm the CSV prefix changed (fixed0_1 should now be 1).
+        assert!(v10_str.starts_with("BLUEPRINT:1,"), "expected V10 fixed0_1=1");
+
+        // Re-parse the V10 string — must succeed and have the same building count.
+        let bp2 = Blueprint::new(&v10_str).expect("V10 parse failed");
+        assert_eq!(
+            bp2.game_version, "0.10.34.28470",
+            "game_version mismatch after V10 round-trip"
+        );
+        assert_eq!(
+            bp2.data.buildings.len(),
+            original_count,
+            "building count changed during V10 round-trip"
+        );
+        eprintln!(
+            "V10 round-trip OK: {} buildings, game_version={}",
+            bp2.data.buildings.len(),
+            bp2.game_version
+        );
+    }
 }
