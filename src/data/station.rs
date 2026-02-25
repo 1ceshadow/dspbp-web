@@ -81,7 +81,10 @@ impl Visit for StationStorage {
 
 #[cfg_attr(feature = "dump", derive(Serialize, Deserialize))]
 #[derive(BinRead, BinWrite)]
-#[br(pre_assert(param_count == 2048))]
+// Relaxed: require at least 329 u32s (5×storage + unknown1 + 12×slots + unknown2 + header)
+// to handle newer game versions with param_count > 2048
+// #[br(pre_assert(param_count == 2048))]
+#[br(pre_assert(param_count >= 329))]
 #[br(import { is_interstellar: bool, param_count: usize })]
 pub struct Station {
     #[br(calc = is_interstellar)]
@@ -100,7 +103,9 @@ pub struct Station {
     pub unknown2: Vec<u32>,
 
     pub header: StationHeader, // 320
-    #[br(count = 2048 - 320 - 9)]
+    // Use param_count so newer versions with more params are handled correctly
+    // #[br(count = 2048 - 320 -9)]
+    #[br(count = param_count - 329)]
     pub unknown3: Vec<u32>,
 }
 

@@ -7,7 +7,9 @@ use super::{traits::IconId, visit::Visit};
 #[cfg_attr(feature = "dump", derive(Serialize, Deserialize))]
 #[derive(BinRead, BinWrite)]
 #[br(import(param_count: usize))]
-#[br(pre_assert(param_count == 2))]
+// Relaxed: require at least 2 params; newer game may add more (extras are ignored)
+// #[br(pre_assert(param_count == 2))]
+#[br(pre_assert(param_count >= 2))]
 pub struct Belt {
     #[br(little)]
     pub label: IconId<u32>,

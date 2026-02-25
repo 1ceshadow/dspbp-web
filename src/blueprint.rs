@@ -5,6 +5,7 @@ use std::str::FromStr;
 use crate::data::blueprint::BlueprintData;
 use crate::data::visit::{Visit, Visitor};
 use crate::error::{some_error, Error};
+use crate::version::with_game_version;
 use base64::engine::GeneralPurpose;
 use base64::Engine;
 use binrw::{BinReaderExt, BinWrite};
@@ -41,6 +42,8 @@ impl Blueprint {
         let mut d = GzDecoder::new(zipped_data.as_slice());
         let mut data = vec![];
         d.read_to_end(&mut data)?;
+        // Binary V2 format is detected per-building inside BuildingHeader
+        // by checking whether the first i32 <= -100. No global flag needed here.
         let mut c = Cursor::new(data);
         let out = c.read_le()?;
         Ok((out, c.into_inner()))
@@ -106,7 +109,17 @@ impl Blueprint {
         }
         data = &data[PREFIX.len()..];
 
-        let fields: Vec<&str> = data.split(',').collect();
+        // The '"' character separates the CSV header (including desc) from the
+        // base-64 payload.  V10 (>= 0.10.30.22239) inserts extra empty comma-
+        // separated fields between desc and '"'; using find('"') handles both
+        // the old format (12 fields) and the new format (15 fields) correctly.
+        let quote_pos = data
+            .find('"')
+            .ok_or_else(|| some_error("No '\"' delimiter found in blueprint data"))?;
+        let csv_part = &data[..quote_pos];
+        let b64data = &data[quote_pos + 1..];
+
+        let fields: Vec<&str> = csv_part.split(',').collect();
         if fields.len() < 12 {
             return Err(some_error(format!(
                 "Expected at least 12 CSV elements, got {}",
@@ -114,38 +127,22 @@ impl Blueprint {
             )));
         }
 
-        let [fixed0_1, layout]: [&str; 2] = fields[0..2].try_into().unwrap();
+        let [_fixed0_1, layout]: [&str; 2] = fields[0..2].try_into().unwrap();
         let icons = &fields[2..7];
-        let [fixed0_2, timestamp, game_version, icon_text]: [&str; 4] =
+        let [_fixed0_2, timestamp, game_version, icon_text]: [&str; 4] =
             fields[7..11].try_into().unwrap();
-        // Rejoin any extra fields beyond index 11 — the description may contain commas
-        let desc_plus_b64data_owned: String = fields[11..].join(",");
-        let desc_plus_b64data: &str = &desc_plus_b64data_owned;
-        let [desc, b64data]: [&str; 2] = desc_plus_b64data
-            .split('"')
-            .collect::<Vec<&str>>()
-            .try_into()
-            .unwrap();
+        // fields[11] is always the description; fields[12..] are V10 reserved extras.
+        let desc = fields[11];
 
-        let fixed0_1: u32 = Self::int(fixed0_1, "fixed0_1")?;
         let layout = Self::int(layout, "layout")?;
         let icons: Vec<u32> = icons
             .into_iter()
             .map(|x| Self::int(*x, "icon"))
             .collect::<Result<Vec<_>, _>>()?;
-        let fixed0_2: u32 = Self::int(fixed0_2, "fixed0_2")?;
         let timestamp = Self::int(timestamp, "timestamp")?;
+        // fixed0_1 / fixed0_2 are ignored: V10 uses 1 instead of 0.
 
-        // if fixed0_1 != 0 {
-        //     return Err(some_error("fixed0_1 is not 0"));
-        // }
-        // if fixed0_2 != 0 {
-        //     return Err(some_error("fixed0_2 is not 0"));
-        // }
-        // fixed0_1 and fixed0_2 were assumed to always be 0, but newer game
-        // versions or non-standard tools may use other values — ignore them.
-
-        let (data, raw_bp) = Self::unpack_data(b64data)?;
+        let (data, raw_bp) = with_game_version(game_version, || Self::unpack_data(b64data))?;
 
         Ok((
             Self {
@@ -162,16 +159,22 @@ impl Blueprint {
     }
     pub fn into_bp_string(&self, level: u32) -> anyhow::Result<String> {
         let icons = self.icons.map(|x| x.to_string()).join(",");
-        let mut out = format!(
-            "BLUEPRINT:0,{},{},0,{},{},{},{}\"{}",
-            self.layout,
-            icons,
-            self.timestamp,
-            self.game_version,
-            self.icon_text,
-            self.desc,
-            self.pack_data(Compression::new(level))?
-        );
+        // Build the header + payload inside with_game_version so is_v10() is
+        // set correctly for both pack_data (binary) and the CSV format changes.
+        let mut out = with_game_version(&self.game_version, || -> anyhow::Result<String> {
+            let b64data = self.pack_data(Compression::new(level))?;
+            // V10: fixed0_1 = 1, and 2 extra empty fields after desc before '"'
+            let (fixed0_1, extra) = if crate::version::is_v10() {
+                ("1", ",,,")
+            } else {
+                ("0", "")
+            };
+            Ok(format!(
+                "BLUEPRINT:{},{},{},0,{},{},{},{}{}\"{}",
+                fixed0_1, self.layout, icons, self.timestamp,
+                self.game_version, self.icon_text, self.desc, extra, b64data,
+            ))
+        })?;
         let hash = Self::hash(&out);
         write!(&mut out, "\"").unwrap();
         for b in hash {
@@ -206,5 +209,57 @@ impl Blueprint {
 impl Visit for Blueprint {
     fn visit<T: Visitor + ?Sized>(&mut self, visitor: &mut T) {
         visitor.visit_blueprint_data(&mut self.data)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Blueprint;
+
+    /// Parse → serialize → re-parse; both parse steps must succeed.
+    fn round_trip(raw: &str) -> Blueprint {
+        let bp = Blueprint::new(raw).expect("parse failed");
+        let out = bp.into_bp_string(6).expect("serialize failed");
+        Blueprint::new(&out).expect("round-trip parse failed");
+        bp
+    }
+
+    /// Collect all *.txt files from the examples/ directory at test time.
+    fn all_example_files() -> Vec<std::path::PathBuf> {
+        let mut dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        dir.push("examples");
+        std::fs::read_dir(&dir)
+            .unwrap_or_else(|_| panic!("cannot read examples dir: {}", dir.display()))
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                if path.extension()?.to_str()? == "txt" {
+                    Some(path)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Every *.txt file in examples/ must parse and round-trip without errors.
+    #[test]
+    fn all_blueprints_round_trip() {
+        let files = all_example_files();
+        assert!(!files.is_empty(), "No .txt files found in examples/");
+        for path in files {
+            let raw_bytes = std::fs::read(&path)
+                .unwrap_or_else(|e| panic!("cannot read {}: {}", path.display(), e));
+            let raw = std::str::from_utf8(&raw_bytes)
+                .unwrap_or_else(|_| panic!("{} is not valid UTF-8", path.display()))
+                .trim();
+            let bp = round_trip(raw);
+            eprintln!(
+                "{}: game_version={} buildings={}",
+                path.file_name().unwrap().to_string_lossy(),
+                bp.game_version,
+                bp.data.buildings.len()
+            );
+        }
     }
 }
