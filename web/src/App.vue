@@ -37,6 +37,7 @@
           </label>
         </div>
         <BlueprintSummary :items="inputBuildingCounts" />
+        <div v-if="inputParseError" class="error-banner mt">⚠️ 解析失败：{{ inputParseError }}</div>
       </section>
 
       <!-- ② 升降级配置 -->
@@ -223,14 +224,12 @@ const copied = ref(false)
 // ── Building summaries ─────────────────────────────────────────────────────
 const inputBuildingCounts = ref<BuildingCount[]>([])
 const outputBuildingCounts = ref<BuildingCount[]>([])
+const inputParseError = ref('')
 
 function loadBuildingCounts(bp: string): BuildingCount[] {
   if (!wasm || !bp.trim()) return []
-  try {
-    return JSON.parse(wasm.blueprint_building_counts(bp.trim())) as BuildingCount[]
-  } catch {
-    return []
-  }
+  // propagate errors so onInputChange can display them
+  return JSON.parse(wasm.blueprint_building_counts(bp.trim())) as BuildingCount[]
 }
 
 // ── Icon editing ───────────────────────────────────────────────────────────
@@ -264,6 +263,7 @@ function onInputChange() {
   outputBp.value = ''
   outputBuildingCounts.value = []
   runError.value = ''
+  inputParseError.value = ''
   if (!wasm || !inputBp.value.trim()) {
     infoText.value = ''
     iconSearches.value = ['', '', '', '', '']
@@ -272,10 +272,15 @@ function onInputChange() {
   }
   try {
     infoText.value = wasm.blueprint_info(inputBp.value.trim())
-  } catch {
+    inputBuildingCounts.value = loadBuildingCounts(inputBp.value)
+  } catch (e: unknown) {
     infoText.value = ''
+    inputBuildingCounts.value = []
+    // Show first line of parse error (the binrw backtrace is very long)
+    const msg = e instanceof Error ? e.message : String(e)
+    inputParseError.value = msg.split('\n')[0].replace(/^⚠️\s*/, '')
+    return
   }
-  inputBuildingCounts.value = loadBuildingCounts(inputBp.value)
   // Load current icon values
   try {
     const icons: number[] = JSON.parse(wasm.get_blueprint_icons(inputBp.value.trim()))
